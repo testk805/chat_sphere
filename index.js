@@ -52,13 +52,21 @@ const io = new Server(server, {
 });
 
 const onlineUsers = new Map();
+const peerToSocketMap = new Map();
 
 io.on("connection", (socket) => {
+  console.log("New client connected:", socket.id);
+
   socket.emit("socketId", socket.id);
 
   socket.on("userOnline", (userId) => {
     onlineUsers.set(userId, socket.id);
     io.emit("updateOnlineUsers", Array.from(onlineUsers.keys()));
+  });
+
+  socket.on("setPeerId", (peerId) => {
+    peerToSocketMap.set(peerId, socket.id);
+    console.log("Mapped peer ID:", peerId, "to socket ID:", socket.id);
   });
 
   socket.on("sendMessage", (message) => {
@@ -88,85 +96,63 @@ io.on("connection", (socket) => {
     io.to(data.to).emit("callAccepted", data.signal);
   });
 
+  socket.on("rejectCall", (data) => {
+    const socketId = peerToSocketMap.get(data.to);
+    console.log("Received rejectCall for peer ID:", data.to, "mapped to socket ID:", socketId);
+    if (socketId) {
+      io.to(socketId).emit("callRejected");
+      console.log("Emitted callRejected to:", socketId);
+    } else {
+      console.log("No socket found for peer ID:", data.to);
+    }
+  });
+
+  socket.on("cancelCall", (data) => {
+    const socketId = peerToSocketMap.get(data.to);
+    console.log("Received cancelCall for peer ID:", data.to, "mapped to socket ID:", socketId);
+    if (socketId) {
+      io.to(socketId).emit("callCancelled");
+      console.log("Emitted callCancelled to:", socketId);
+    } else {
+      console.log("No socket found for peer ID:", data.to);
+    }
+  });
+
+  socket.on("endCall", (data) => {
+    const socketId = peerToSocketMap.get(data.to);
+    console.log("Received endCall for peer ID:", data.to, "mapped to socket ID:", socketId);
+    if (socketId) {
+      io.to(socketId).emit("endCall");
+      console.log("Emitted endCall to:", socketId);
+    } else {
+      console.log("No socket found for peer ID:", data.to);
+    }
+  });
+
   socket.on("disconnect", () => {
-    let disconnectedUserId = [...onlineUsers.entries()].find(([_, sid]) => sid === socket.id)?.[0];
+    let disconnectedUserId = [...onlineUsers.entries()].find(
+      ([_, sid]) => sid === socket.id
+    )?.[0];
+
     if (disconnectedUserId) {
       onlineUsers.delete(disconnectedUserId);
-      io.emit("updateOnlineUsers", Array.from(onlineUsers.keys()));
     }
+
+    for (let [peerId, socketId] of peerToSocketMap.entries()) {
+      if (socketId === socket.id) {
+        peerToSocketMap.delete(peerId);
+      }
+    }
+
+    io.emit("updateOnlineUsers", Array.from(onlineUsers.keys()));
+    console.log("Client disconnected:", socket.id);
   });
 });
 
-// 🔐 API Routes
 const loginRoutes = require("./routes/login");
 const chatRoutes = require("./routes/chat");
 app.use("/api", loginRoutes);
 app.use("/api", chatRoutes);
-
-// 🎨 Upload & Auto-Background Processing
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-    cb(null, allowed.includes(file.mimetype));
-  },
-});
-
-app.post("/upload", upload.single("image"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded or invalid format" });
-
-    const { buffer } = req.file;
-    const metadata = await sharp(buffer).metadata();
-
-    const sampleSize = 10;
-    const left = await sharp(buffer).extract({
-      left: 0,
-      top: Math.floor(metadata.height / 2),
-      width: sampleSize,
-      height: sampleSize,
-    }).toBuffer();
-
-    const right = await sharp(buffer).extract({
-      left: Math.floor(metadata.width - sampleSize),
-      top: Math.floor(metadata.height / 2),
-      width: sampleSize,
-      height: sampleSize,
-    }).toBuffer();
-
-    const leftColor = await fac.getAverageColor(left);
-    const rightColor = await fac.getAverageColor(right);
-
-    const bgColor = {
-      r: Math.round((leftColor.value[0] + rightColor.value[0]) / 2),
-      g: Math.round((leftColor.value[1] + rightColor.value[1]) / 2),
-      b: Math.round((leftColor.value[2] + rightColor.value[2]) / 2),
-      alpha: 1,
-    };
-
-    const maxSize = 600;
-    const { width, height } = metadata;
-    const newWidth = width > height ? maxSize : Math.round((width / height) * maxSize);
-    const newHeight = width > height ? Math.round((height / width) * maxSize) : maxSize;
-
-    const resized = await sharp(buffer).resize(newWidth, newHeight).toBuffer();
-
-    const finalImage = await sharp({
-      create: {
-        width: maxSize,
-        height: maxSize,
-        channels: 3,
-        background: bgColor,
-      },
-    }).composite([{ input: resized, gravity: "center" }]).toFormat("png").toBuffer();
-
-    res.set("Content-Type", "image/png").send(finalImage);
-  } catch (error) {
-    console.error("Image processing error:", error);
-    res.status(500).json({ error: "Image processing failed" });
-  }
-});
 
 // 🔁 Root Route (Fix 404)
 app.get("/", (req, res) => {
