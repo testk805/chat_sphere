@@ -15,4 +15,14 @@ db.connect(function (error) {
   console.log("Connected to the database!");
 });
 
+// Make sure to reconnect if connection is closed
+db.on("error", (err) => {
+  console.log("Database connection lost. Attempting to reconnect...", err);
+  if (err.code === "PROTOCOL_CONNECTION_LOST") {
+    db.connect();
+  } else {
+    console.error("Unexpected database error:", err);
+  }
+});
+
 module.exports = db;
