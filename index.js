@@ -15,11 +15,12 @@ const server = http.createServer(app);
 
 // 🔒 Middleware
 app.use(cors({
-  origin: "*", // Change for production
+  origin: ["https://chat-sphere-liart.vercel.app", "https://portfolio.hostingoncloud.in"],
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
+
 app.use(helmet());
 app.use(bodyParser.json());
 
