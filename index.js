@@ -159,4 +159,9 @@ app.use("/api", loginRoutes);
 app.use("/api", chatRoutes);
 
 
+app.get("/", (req, res) => {
+  res.send("🎉 ChatSphere backend is live!");
+});
+
+
 server.listen(port, () => console.log(`Server running on port ${port}`));
