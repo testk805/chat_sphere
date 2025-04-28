@@ -176,8 +176,8 @@ io.on("connection", (socket) => {
 });
 
 // Routes
-const loginRoutes = require("./controllers/login"); // Adjust path if in controllers/
-const chatRoutes = require("./controllers/chat");   // Adjust path if in controllers/
+const loginRoutes = require("./routes/login");
+const chatRoutes = require("./routes/chat");
 app.use("/api", loginRoutes);
 app.use("/api", chatRoutes);
 
