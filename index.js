@@ -34,8 +34,26 @@ const express = require("express");
  app.use(helmet());
  app.use(bodyParser.json());
  
-app.use("/profile", express.static(path.join(__dirname, "profile")));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(
+  "/profile",
+  express.static(path.join(__dirname, "profile"), {
+    setHeaders: (res, path) => {
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  })
+);
+
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "Uploads"), {
+    setHeaders: (res, path) => {
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    },
+  })
+);
  
 const onlineUsers = new Map();
 const peerToSocketMap = new Map();
