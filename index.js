@@ -5,57 +5,48 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
-const fs = require("fs");
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = 3001;
 const server = http.createServer(app);
+app.use(cors());
+const io = new Server(server, {
+  cors: {
+    origin: ["https://chat-sphere-liart.vercel.app", "http://localhost:3000"], // Allow all domains (change this for production security)
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true, // Allow cookies/auth headers
+  },
+});
 
-// CORS configuration
-const allowedOrigins = ["https://chat-sphere-liart.vercel.app", "http://localhost:3000"];
+// 🛠 CORS FIX
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (e.g., server-to-server) or from allowed origins
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, origin || "*");
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    methods: ["GET", "POST", "OPTIONS"],
+    origin: ["https://chat-sphere-liart.vercel.app", "http://localhost:3000"],
+    methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["Content-Length", "X-Content-Type-Options"],
     credentials: true,
   })
 );
 
-// Serve profile images
 app.use(
   "/profile",
   express.static(path.join(__dirname, "profile"), {
-    setHeaders: (res, reqPath) => {
-      res.set({
-        "Access-Control-Allow-Origin": reqPath.headers.origin || "https://chat-sphere-liart.vercel.app",
-        "Cross-Origin-Resource-Policy": "cross-origin",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      });
+    setHeaders: (res, path) => {
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
     },
   })
 );
 
-// Serve uploaded files
 app.use(
   "/uploads",
-  express.static(path.join(__dirname, "Uploads"), {
-    setHeaders: (res, reqPath) => {
-      res.set({
-        "Access-Control-Allow-Origin": reqPath.headers.origin || "https://chat-sphere-liart.vercel.app",
-        "Cross-Origin-Resource-Policy": "cross-origin",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Cache-Control": "public, max-age=3600", // Optional: Cache for 1 hour
-      });
+  express.static(path.join(__dirname, "uploads"), {
+    setHeaders: (res, path) => {
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+      res.set("Access-Control-Allow-Origin", "*"); // Allow all origins
+      res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     },
   })
 );
@@ -63,35 +54,17 @@ app.use(
 app.use(helmet());
 app.use(bodyParser.json());
 
-// Socket.IO setup
-const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  },
-});
+app.use("/profile", express.static(path.join(__dirname, "profile")));
 
 const onlineUsers = new Map();
-const peerToSocketMap = new Map();
 
 io.on("connection", (socket) => {
-  console.log("New client connected:", socket.id);
-
-  socket.emit("socketId", socket.id);
-
   socket.on("userOnline", (userId) => {
     onlineUsers.set(userId, socket.id);
     io.emit("updateOnlineUsers", Array.from(onlineUsers.keys()));
-    console.log(`User ${userId} is online, socket ID: ${socket.id}`);
   });
-
-  socket.on("setPeerId", (peerId) => {
-    peerToSocketMap.set(peerId, socket.id);
-    console.log("Mapped peer ID:", peerId, "to socket ID:", socket.id);
-  });
-
+  socket.emit("socketId", socket.id);
+  // 📩 Handle Messages
   socket.on("sendMessage", (message) => {
     io.emit("newMessage", message);
     io.emit("refreshData", {
@@ -100,6 +73,7 @@ io.on("connection", (socket) => {
     });
   });
 
+  // ✍️ Handle Typing Status
   socket.on("typing", ({ senderId, receiverId }) => {
     io.emit("typing", { senderId, receiverId });
   });
@@ -109,61 +83,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("callUser", (data) => {
-    console.log(`Call initiated from ${data.from} to ${data.userToCall}`);
-    const socketId = peerToSocketMap.get(data.userToCall);
-    if (socketId) {
-      io.to(socketId).emit("callIncoming", {
-        signal: data.signalData,
-        from: data.from,
-      });
-      console.log(`Emitted callIncoming to socket ID: ${socketId}`);
-    } else {
-      console.log(`No socket found for peer ID: ${data.userToCall}`);
-    }
+    io.to(data.userToCall).emit("callIncoming", {
+      signal: data.signalData,
+      from: data.from,
+    });
   });
 
   socket.on("answerCall", (data) => {
-    console.log(`Call answered, sending to ${data.to}`);
-    const socketId = peerToSocketMap.get(data.to);
-    if (socketId) {
-      io.to(socketId).emit("callAccepted", data.signal);
-      console.log(`Emitted callAccepted to socket ID: ${socketId}`);
-    } else {
-      console.log(`No socket found for peer ID: ${data.to}`);
-    }
-  });
-
-  socket.on("rejectCall", (data) => {
-    const socketId = peerToSocketMap.get(data.to);
-    console.log("Received rejectCall for peer ID:", data.to, "mapped to socket ID:", socketId);
-    if (socketId) {
-      io.to(socketId).emit("callRejected");
-      console.log("Emitted callRejected to:", socketId);
-    } else {
-      console.log("No socket found for peer ID:", data.to);
-    }
-  });
-
-  socket.on("cancelCall", (data) => {
-    const socketId = peerToSocketMap.get(data.to);
-    console.log("Received cancelCall for peer ID:", data.to, "mapped to socket ID:", socketId);
-    if (socketId) {
-      io.to(socketId).emit("callCancelled");
-      console.log("Emitted callCancelled to:", socketId);
-    } else {
-      console.log("No socket found for peer ID:", data.to);
-    }
-  });
-
-  socket.on("endCall", (data) => {
-    const socketId = peerToSocketMap.get(data.to);
-    console.log("Received endCall for peer ID:", data.to, "mapped to socket ID:", socketId);
-    if (socketId) {
-      io.to(socketId).emit("endCall");
-      console.log("Emitted endCall to:", socketId);
-    } else {
-      console.log("No socket found for peer ID:", data.to);
-    }
+    io.to(data.to).emit("callAccepted", data.signal);
   });
 
   socket.on("disconnect", () => {
@@ -173,16 +100,8 @@ io.on("connection", (socket) => {
 
     if (disconnectedUserId) {
       onlineUsers.delete(disconnectedUserId);
+      io.emit("updateOnlineUsers", Array.from(onlineUsers.keys()));
     }
-
-    for (let [peerId, socketId] of peerToSocketMap.entries()) {
-      if (socketId === socket.id) {
-        peerToSocketMap.delete(peerId);
-      }
-    }
-
-    io.emit("updateOnlineUsers", Array.from(onlineUsers.keys()));
-    console.log("Client disconnected:", socket.id);
   });
 });
 
@@ -192,20 +111,13 @@ const chatRoutes = require("./routes/chat");
 app.use("/api", loginRoutes);
 app.use("/api", chatRoutes);
 
-// Debug endpoint to list files
-app.get("/api/list-files", (req, res) => {
-  const uploadPath = path.join(__dirname, "Uploads");
-  fs.readdir(uploadPath, { recursive: true }, (err, files) => {
-    if (err) {
-      return res.status(500).json({ error: "Failed to list files", details: err.message });
-    }
-    res.json({ files });
-  });
-});
 
-// Root route
+
 app.get("/", (req, res) => {
   res.send("🎉 ChatSphere backend is live!");
 });
 
-server.listen(port, () => console.log(`Server running on port ${port}`));
+// 🔊 Start Server
+server.listen(port, () => {
+  console.log(`🚀 Server running at http://localhost:${port}`);
+});
