@@ -43,14 +43,6 @@ app.use(
   })
 );
 
-app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "Uploads"), {
-    setHeaders: (res, path) => {
-      res.set("Cross-Origin-Resource-Policy", "cross-origin");
-    },
-  })
-);
  
 const onlineUsers = new Map();
 const peerToSocketMap = new Map();
@@ -149,7 +141,22 @@ io.on("connection", (socket) => {
     console.log("Client disconnected:", socket.id);
   });
 });
- 
+
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "Uploads"), {
+    setHeaders: (res, path) => {
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+      res.set("Access-Control-Allow-Origin", "*"); // Allows all origins
+      res.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE"); // Methods allowed
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization"); // Headers allowed
+      res.set("Cache-Control", "public, max-age=31536000, immutable"); // Caching headers
+      res.set("Content-Security-Policy", "default-src 'self'"); // Security policy
+      // Add any additional headers as needed
+    },
+  })
+);
+
  // Routes
  const loginRoutes = require("./routes/login");
  const chatRoutes = require("./routes/chat");
