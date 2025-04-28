@@ -54,7 +54,8 @@ const express = require("express");
  app.use(helmet());
  app.use(bodyParser.json());
  
- app.use("/profile", express.static(path.join(__dirname, "profile")));
+app.use("/profile", express.static(path.join(__dirname, "profile")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
  
  const onlineUsers = new Map();
  
