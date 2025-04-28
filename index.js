@@ -11,10 +11,18 @@ const app = express();
 const port = process.env.PORT || 3001;
 const server = http.createServer(app);
 
-// CORS configuration for Vercel frontend
+// CORS configuration
+const allowedOrigins = ["https://chat-sphere-liart.vercel.app", "http://localhost:3000"];
 app.use(
   cors({
-    origin: ["https://chat-sphere-liart.vercel.app", "http://localhost:3000"],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g., server-to-server) or from allowed origins
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, origin || "*");
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -25,10 +33,12 @@ app.use(
 app.use(
   "/profile",
   express.static(path.join(__dirname, "profile"), {
-    setHeaders: (res) => {
+    setHeaders: (res, reqPath) => {
       res.set({
-        "Access-Control-Allow-Origin": "https://chat-sphere-liart.vercel.app",
+        "Access-Control-Allow-Origin": reqPath.headers.origin || "https://chat-sphere-liart.vercel.app",
         "Cross-Origin-Resource-Policy": "cross-origin",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
       });
     },
   })
@@ -38,12 +48,13 @@ app.use(
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "Uploads"), {
-    setHeaders: (res) => {
+    setHeaders: (res, reqPath) => {
       res.set({
-        "Access-Control-Allow-Origin": "https://chat-sphere-liart.vercel.app",
+        "Access-Control-Allow-Origin": reqPath.headers.origin || "https://chat-sphere-liart.vercel.app",
         "Cross-Origin-Resource-Policy": "cross-origin",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Cache-Control": "public, max-age=3600", // Optional: Cache for 1 hour
       });
     },
   })
@@ -55,7 +66,7 @@ app.use(bodyParser.json());
 // Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: "https://chat-sphere-liart.vercel.app",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
