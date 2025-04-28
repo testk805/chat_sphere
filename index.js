@@ -66,7 +66,6 @@ io.on("connection", (socket) => {
   socket.on("userOnline", (userId) => {
     onlineUsers.set(userId, socket.id);
     io.emit("updateOnlineUsers", Array.from(onlineUsers.keys()));
-    console.log(`User ${userId} is online, socket ID: ${socket.id}`);
   });
 
   socket.on("setPeerId", (peerId) => {
@@ -91,28 +90,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("callUser", (data) => {
-    console.log(`Call initiated from ${data.from} to ${data.userToCall}`);
-    const socketId = peerToSocketMap.get(data.userToCall);
-    if (socketId) {
-      io.to(socketId).emit("callIncoming", {
-        signal: data.signalData,
-        from: data.from,
-      });
-      console.log(`Emitted callIncoming to socket ID: ${socketId}`);
-    } else {
-      console.log(`No socket found for peer ID: ${data.userToCall}`);
-    }
+    io.to(data.userToCall).emit("callIncoming", {
+      signal: data.signalData,
+      from: data.from,
+    });
   });
 
   socket.on("answerCall", (data) => {
-    console.log(`Call answered, sending to ${data.to}`);
-    const socketId = peerToSocketMap.get(data.to);
-    if (socketId) {
-      io.to(socketId).emit("callAccepted", data.signal);
-      console.log(`Emitted callAccepted to socket ID: ${socketId}`);
-    } else {
-      console.log(`No socket found for peer ID: ${data.to}`);
-    }
+    io.to(data.to).emit("callAccepted", data.signal);
   });
 
   socket.on("rejectCall", (data) => {
