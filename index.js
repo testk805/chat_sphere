@@ -5,39 +5,46 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
+const fs = require("fs");
 
 const app = express();
-const port = process.env.PORT || 3001; // Use Render's PORT env variable
+const port = process.env.PORT || 3001;
 const server = http.createServer(app);
 
-// Simplified CORS configuration
+// CORS configuration for Vercel frontend
 app.use(
   cors({
-    origin: "*", // Allow all origins for development; restrict in production
+    origin: ["https://chat-sphere-liart.vercel.app", "http://localhost:3000"],
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
 
+// Serve profile images
 app.use(
   "/profile",
   express.static(path.join(__dirname, "profile"), {
     setHeaders: (res) => {
-      res.set("Cross-Origin-Resource-Policy", "cross-origin");
-      res.set("Access-Control-Allow-Origin", "*");
+      res.set({
+        "Access-Control-Allow-Origin": "https://chat-sphere-liart.vercel.app",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+      });
     },
   })
 );
 
+// Serve uploaded files
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "Uploads"), {
     setHeaders: (res) => {
-      res.set("Cross-Origin-Resource-Policy", "cross-origin");
-      res.set("Access-Control-Allow-Origin", "*");
-      res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.set({
+        "Access-Control-Allow-Origin": "https://chat-sphere-liart.vercel.app",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      });
     },
   })
 );
@@ -48,7 +55,7 @@ app.use(bodyParser.json());
 // Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "https://chat-sphere-liart.vercel.app",
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -169,19 +176,25 @@ io.on("connection", (socket) => {
 });
 
 // Routes
-const loginRoutes = require("./routes/login");
-const chatRoutes = require("./routes/chat");
+const loginRoutes = require("./controllers/login"); // Adjust path if in controllers/
+const chatRoutes = require("./controllers/chat");   // Adjust path if in controllers/
 app.use("/api", loginRoutes);
 app.use("/api", chatRoutes);
+
+// Debug endpoint to list files
+app.get("/api/list-files", (req, res) => {
+  const uploadPath = path.join(__dirname, "Uploads");
+  fs.readdir(uploadPath, { recursive: true }, (err, files) => {
+    if (err) {
+      return res.status(500).json({ error: "Failed to list files", details: err.message });
+    }
+    res.json({ files });
+  });
+});
 
 // Root route
 app.get("/", (req, res) => {
   res.send("🎉 ChatSphere backend is live!");
-});
-
-// Serve React app for any unmatched routes
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "client", "build", "index.html"));
 });
 
 server.listen(port, () => console.log(`Server running on port ${port}`));
