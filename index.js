@@ -20,10 +20,6 @@ app.use(
   })
 );
 
-// Serve static files for client build
-app.use(express.static(path.join(__dirname, "client", "build")));
-
-// Serve profile images with CORS headers
 app.use(
   "/profile",
   express.static(path.join(__dirname, "profile"), {
@@ -34,7 +30,6 @@ app.use(
   })
 );
 
-// Serve uploaded files (e.g., messages images) with proper CORS headers
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "Uploads"), {
