@@ -11,5 +11,6 @@ router.post("/forgotPasswordOtp", loginController.forgotPasswordOtp);
 router.post("/UserLogin", loginController.UserLogin);
 router.post("/verifyEmail", loginController.verifyEmail);
 router.post("/realveriftotp", loginController.realveriftotp);
+router.post("/Updatelastlogin", loginController.Updatelastlogin);
 
 module.exports = router;

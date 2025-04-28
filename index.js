@@ -5,44 +5,11 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
-const multer = require("multer");
-const sharp = require("sharp");
-const fac = require("fast-average-color-node");
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = 3001;
 const server = http.createServer(app);
-
-// 🔒 Middleware
-app.use(cors({
-  origin: ["https://chat-sphere-liart.vercel.app", "https://portfolio.hostingoncloud.in"],
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-}));
-
-app.use(helmet());
-app.use(bodyParser.json());
-
-// 🖼️ Serve static files
-app.use(express.static(path.join(__dirname, "client", "build")));
-
-app.use("/profile", express.static(path.join(__dirname, "profile"), {
-  setHeaders: (res) => {
-    res.set("Cross-Origin-Resource-Policy", "cross-origin");
-  },
-}));
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
-  setHeaders: (res) => {
-    res.set("Cross-Origin-Resource-Policy", "cross-origin");
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  },
-}));
-
-// 💬 Socket.IO
+app.use(cors());
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -51,6 +18,42 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["Content-Length", "X-Content-Type-Options"],
+    credentials: true,
+  })
+);
+
+app.use(express.static(path.join(__dirname, "client", "build")));
+app.use(
+  "/profile",
+  express.static(path.join(__dirname, "profile"), {
+    setHeaders: (res, path) => {
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  })
+);
+
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "Uploads"), {
+    setHeaders: (res, path) => {
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    },
+  })
+);
+
+app.use(helmet());
+app.use(bodyParser.json());
+app.use("/profile", express.static(path.join(__dirname, "profile")));
 
 const onlineUsers = new Map();
 const peerToSocketMap = new Map();
@@ -155,12 +158,5 @@ const chatRoutes = require("./routes/chat");
 app.use("/api", loginRoutes);
 app.use("/api", chatRoutes);
 
-// 🔁 Root Route (Fix 404)
-app.get("/", (req, res) => {
-  res.send("🎉 ChatSphere backend is live!");
-});
 
-// 🔊 Start Server
-server.listen(port, () => {
-  console.log(`🚀 Server running at http://localhost:${port}`);
-});
+server.listen(port, () => console.log(`Server running on port ${port}`));

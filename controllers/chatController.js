@@ -51,23 +51,16 @@ exports.updatelocation = (req, res) => {
 };
 
 exports.savePeerid = (req, res) => {
-  const { value ,userEmail } = req.body;
-  const SelectQuery =
-    "UPDATE `user` SET `peer_ID`= ? WHERE `email` = ?";
+  const { value, userEmail } = req.body;
+  const SelectQuery = "UPDATE `user` SET `peer_ID`= ? WHERE `email` = ?";
 
-  db.query(
-    SelectQuery,
-    [value ,userEmail],
-    function (error, result) {
-      if (error) {
-        return console.log(error);
-      }
-      res.status(200).json({ status: 1, data: result });
+  db.query(SelectQuery, [value, userEmail], function (error, result) {
+    if (error) {
+      return console.log(error);
     }
-  );
+    res.status(200).json({ status: 1, data: result });
+  });
 };
-
-
 
 exports.getfriendchat = (req, res) => {
   const { id } = req.body;
@@ -183,4 +176,49 @@ exports.getUserChat = (req, res) => {
       res.status(200).json({ status: 1, data: result });
     }
   );
+};
+
+exports.handledeleteMessage = (req, res) => {
+  const { id, type, file_url } = req.body;
+
+  console.log(type);
+
+  if (type === "text") {
+    try {
+      const deleteQuery = "DELETE FROM `message` WHERE `id` = ?";
+      db.query(deleteQuery, [id], function (error, result) {
+        if (error) {
+          return console.log(error);
+        }
+        res.status(200).json({ status: 1, message: "Message deleted successfully." });
+      });
+    } catch (error) {
+      return console.log(error);
+    }
+  } else {
+    try {
+
+      const filePath = path.join(__dirname, "..", file_url);
+
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          console.log('Error deleting file:', err);
+          return res.status(500).json({ status: 0, message: "Error deleting the file." });
+        }
+
+        const deleteQuery = "DELETE FROM `message` WHERE `id` = ?";
+        db.query(deleteQuery, [id], function (error, result) {
+          if (error) {
+            console.log(error);
+            return res.status(500).json({ status: 0, message: "Error deleting message from database." });
+          }
+
+          res.status(200).json({ status: 1, message: "Message and associated file deleted successfully." });
+        });
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ status: 0, message: "Error processing request." });
+    }
+  }
 };

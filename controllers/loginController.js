@@ -125,7 +125,7 @@ For any assistance, feel free to contact our support team.
 
 Best regards,
 Chat Sphere Team
-📧 support@chatsphere.com | 🌐  http://localhost:3001/`,
+📧 support@chatsphere.com | 🌐 https://chat-sphere-tkbs.onrender.com/`,
   };
 
   try {
@@ -241,7 +241,7 @@ Need help? Contact our support team.
 
 Best regards,
 Chat Sphere Team
-📧 support@chatsphere.com | 🌐  http://localhost:3001/
+📧 support@chatsphere.com | 🌐 https://chat-sphere-tkbs.onrender.com/
 `,
   };
 
@@ -352,7 +352,7 @@ For any assistance, feel free to contact our support team.
 
 Best regards,  
 Chat Sphere Team  
-📧 support@chatsphere.com | 🌐  http://localhost:3001/  
+📧 support@chatsphere.com | 🌐 https://chat-sphere-tkbs.onrender.com/  
 `,
   };
 
@@ -465,3 +465,20 @@ exports.realveriftotp = async (req, res) => {
     res.status(200).json({ message: "Error when Verify OTP." });
   }
 };
+
+exports.Updatelastlogin = (req, res) => {
+  const { userEmail } = req.body;
+  try {
+    const UpdateQuery = "UPDATE `user` SET `last_login` = CURRENT_TIMESTAMP() WHERE `email` = ?";
+    db.query(UpdateQuery, [userEmail], function (error, result) {
+      if (error) {
+        console.log(error);
+        return res.status(500).json({ status: 0, error: error.message });
+      }
+      res.status(200).json({ status: 1, message: "Last login updated successfully." });
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ status: 0, error: error.message });
+  }
+}

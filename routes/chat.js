@@ -9,5 +9,6 @@ router.post("/getfriendchat", chatController.getfriendchat);
 router.post("/sendMessage", chatController.sendMessage);
 router.post("/getUserChat", chatController.getUserChat);
 router.post("/savePeerid", chatController.savePeerid);
+router.post("/handledeleteMessage", chatController.handledeleteMessage);
 
 module.exports = router;
