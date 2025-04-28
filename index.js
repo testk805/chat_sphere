@@ -30,26 +30,6 @@ const express = require("express");
    })
  );
  // 🛠 Serve Images Properly
- app.use(
-   "/profile",
-   express.static(path.join(__dirname, "profile"), {
-     setHeaders: (res, path) => {
-       res.set("Cross-Origin-Resource-Policy", "cross-origin");
-     },
-   })
- );
- 
- app.use(
-   "/uploads",
-   express.static(path.join(__dirname, "uploads"), {
-     setHeaders: (res, path) => {
-       res.set("Cross-Origin-Resource-Policy", "cross-origin");
-       res.set("Access-Control-Allow-Origin", "*"); // Allow all origins
-       res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-       res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-     },
-   })
- );
  
  app.use(helmet());
  app.use(bodyParser.json());
