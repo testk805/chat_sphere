@@ -7,42 +7,38 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001; // Use Render's PORT env variable
 const server = http.createServer(app);
-app.use(cors());
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  },
-});
 
+// Simplified CORS configuration
 app.use(
   cors({
-    origin: "*",
-    methods: ["GET", "POST"],
+    origin: "*", // Allow all origins for development; restrict in production
+    methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    exposedHeaders: ["Content-Length", "X-Content-Type-Options"],
     credentials: true,
   })
 );
 
+// Serve static files for client build
 app.use(express.static(path.join(__dirname, "client", "build")));
+
+// Serve profile images with CORS headers
 app.use(
   "/profile",
   express.static(path.join(__dirname, "profile"), {
-    setHeaders: (res, path) => {
+    setHeaders: (res) => {
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
+      res.set("Access-Control-Allow-Origin", "*");
     },
   })
 );
 
+// Serve uploaded files (e.g., messages images) with proper CORS headers
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "Uploads"), {
-    setHeaders: (res, path) => {
+    setHeaders: (res) => {
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
       res.set("Access-Control-Allow-Origin", "*");
       res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -53,7 +49,16 @@ app.use(
 
 app.use(helmet());
 app.use(bodyParser.json());
-app.use("/profile", express.static(path.join(__dirname, "profile")));
+
+// Socket.IO setup
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  },
+});
 
 const onlineUsers = new Map();
 const peerToSocketMap = new Map();
@@ -66,6 +71,7 @@ io.on("connection", (socket) => {
   socket.on("userOnline", (userId) => {
     onlineUsers.set(userId, socket.id);
     io.emit("updateOnlineUsers", Array.from(onlineUsers.keys()));
+    console.log(`User ${userId} is online, socket ID: ${socket.id}`);
   });
 
   socket.on("setPeerId", (peerId) => {
@@ -90,14 +96,28 @@ io.on("connection", (socket) => {
   });
 
   socket.on("callUser", (data) => {
-    io.to(data.userToCall).emit("callIncoming", {
-      signal: data.signalData,
-      from: data.from,
-    });
+    console.log(`Call initiated from ${data.from} to ${data.userToCall}`);
+    const socketId = peerToSocketMap.get(data.userToCall);
+    if (socketId) {
+      io.to(socketId).emit("callIncoming", {
+        signal: data.signalData,
+        from: data.from,
+      });
+      console.log(`Emitted callIncoming to socket ID: ${socketId}`);
+    } else {
+      console.log(`No socket found for peer ID: ${data.userToCall}`);
+    }
   });
 
   socket.on("answerCall", (data) => {
-    io.to(data.to).emit("callAccepted", data.signal);
+    console.log(`Call answered, sending to ${data.to}`);
+    const socketId = peerToSocketMap.get(data.to);
+    if (socketId) {
+      io.to(socketId).emit("callAccepted", data.signal);
+      console.log(`Emitted callAccepted to socket ID: ${socketId}`);
+    } else {
+      console.log(`No socket found for peer ID: ${data.to}`);
+    }
   });
 
   socket.on("rejectCall", (data) => {
@@ -153,15 +173,20 @@ io.on("connection", (socket) => {
   });
 });
 
+// Routes
 const loginRoutes = require("./routes/login");
 const chatRoutes = require("./routes/chat");
 app.use("/api", loginRoutes);
 app.use("/api", chatRoutes);
 
-
+// Root route
 app.get("/", (req, res) => {
   res.send("🎉 ChatSphere backend is live!");
 });
 
+// Serve React app for any unmatched routes
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "client", "build", "index.html"));
+});
 
 server.listen(port, () => console.log(`Server running on port ${port}`));
