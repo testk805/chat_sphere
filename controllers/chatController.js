@@ -16,6 +16,32 @@ exports.fetchuserdata = (req, res) => {
   });
 };
 
+exports.seenallmessage = async (req, res) => {
+  const { fid, uid } = req.body;
+  console.log(fid, uid);
+  try {
+    const UpdateQuery =
+      "UPDATE `message` SET `status`='seen' WHERE `sender_id` = ? AND `reciver_id` = ?";
+    db.query(UpdateQuery, [fid, uid], function (error, result) {
+      if (error) {
+        return console.log(error);
+      }
+      const SelectQuery =
+        "SELECT `status` FROM `message` WHERE `sender_id` = ? AND `reciver_id` = ?";
+      db.query(SelectQuery, [fid, uid], function (error, result) {
+        if (error) {
+          return console.log(error);
+        }
+        return res
+          .status(200)
+          .json({ status: 1, data: result[0], message: "Seen all message" });
+      });
+    });
+  } catch (error) {
+    return console.log(error);
+  }
+};
+
 exports.fetchFriendData = (req, res) => {
   const { userEmail, lat, long } = req.body;
   const SelectQuery =
@@ -133,7 +159,7 @@ exports.sendMessage = (req, res) => {
         message || "",
         file_url || "",
         file_type || "",
-        status || "sent",
+        "sent",
       ],
       (err, result) => {
         if (err) {
@@ -190,35 +216,46 @@ exports.handledeleteMessage = (req, res) => {
         if (error) {
           return console.log(error);
         }
-        res.status(200).json({ status: 1, message: "Message deleted successfully." });
+        res
+          .status(200)
+          .json({ status: 1, message: "Message deleted successfully." });
       });
     } catch (error) {
       return console.log(error);
     }
   } else {
     try {
-
       const filePath = path.join(__dirname, "..", file_url);
 
       fs.unlink(filePath, (err) => {
         if (err) {
-          console.log('Error deleting file:', err);
-          return res.status(500).json({ status: 0, message: "Error deleting the file." });
+          console.log("Error deleting file:", err);
+          return res
+            .status(500)
+            .json({ status: 0, message: "Error deleting the file." });
         }
 
         const deleteQuery = "DELETE FROM `message` WHERE `id` = ?";
         db.query(deleteQuery, [id], function (error, result) {
           if (error) {
             console.log(error);
-            return res.status(500).json({ status: 0, message: "Error deleting message from database." });
+            return res.status(500).json({
+              status: 0,
+              message: "Error deleting message from database.",
+            });
           }
 
-          res.status(200).json({ status: 1, message: "Message and associated file deleted successfully." });
+          res.status(200).json({
+            status: 1,
+            message: "Message and associated file deleted successfully.",
+          });
         });
       });
     } catch (error) {
       console.log(error);
-      return res.status(500).json({ status: 0, message: "Error processing request." });
+      return res
+        .status(500)
+        .json({ status: 0, message: "Error processing request." });
     }
   }
 };
