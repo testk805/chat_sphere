@@ -1,28 +1,35 @@
-var mysql = require("mysql2");
+const mysql = require("mysql2");
 
-var db = mysql.createConnection({
-  host: "bn4a7py0a8uurhaxofah-mysql.services.clever-cloud.com",
-  user: "ujeqfubo3vwlaios",
-  password: "QwWhQ3tysjHhbC9mn01k",
-  database: "bn4a7py0a8uurhaxofah",
-});
+let db;
 
-db.connect(function (error) {
-  if (error) {
-    console.log("Error connecting to database: ", error);
-    process.exit(1);
-  }
-  console.log("Connected to the database!");
-});
+function handleDisconnect() {
+  db = mysql.createConnection({
+    host: "bn4a7py0a8uurhaxofah-mysql.services.clever-cloud.com",
+    user: "ujeqfubo3vwlaios",
+    password: "QwWhQ3tysjHhbC9mn01k",
+    database: "bn4a7py0a8uurhaxofah",
+  });
 
-// Make sure to reconnect if connection is closed
-db.on("error", (err) => {
-  console.log("Database connection lost. Attempting to reconnect...", err);
-  if (err.code === "PROTOCOL_CONNECTION_LOST") {
-    db.connect();
-  } else {
-    console.error("Unexpected database error:", err);
-  }
-});
+  db.connect((err) => {
+    if (err) {
+      console.error("Error connecting to DB, retrying in 5s:", err);
+      setTimeout(handleDisconnect, 5000); // Retry after 5s
+    } else {
+      console.log("✅ MySQL Connected!");
+    }
+  });
+
+  db.on("error", (err) => {
+    console.error("MySQL error:", err);
+    if (err.code === "PROTOCOL_CONNECTION_LOST") {
+      console.log("🔁 Reconnecting to DB...");
+      handleDisconnect();
+    } else {
+      throw err;
+    }
+  });
+}
+
+handleDisconnect();
 
 module.exports = db;
