@@ -76,6 +76,10 @@ io.on("connection", (socket) => {
     console.log("Mapped peer ID:", peerId, "to socket ID:", socket.id);
   });
 
+  socket.on("SeenMessage", ({ senderId, receiverId }) => {
+    io.emit("SeenMessage", { senderId, receiverId, status: "seen" });
+  });
+
   socket.on("sendMessage", (message) => {
     io.emit("newMessage", message);
     io.emit("refreshData", {
@@ -105,7 +109,12 @@ io.on("connection", (socket) => {
 
   socket.on("rejectCall", (data) => {
     const socketId = peerToSocketMap.get(data.to);
-    console.log("Received rejectCall for peer ID:", data.to, "mapped to socket ID:", socketId);
+    console.log(
+      "Received rejectCall for peer ID:",
+      data.to,
+      "mapped to socket ID:",
+      socketId
+    );
     if (socketId) {
       io.to(socketId).emit("callRejected");
       console.log("Emitted callRejected to:", socketId);
@@ -116,7 +125,12 @@ io.on("connection", (socket) => {
 
   socket.on("cancelCall", (data) => {
     const socketId = peerToSocketMap.get(data.to);
-    console.log("Received cancelCall for peer ID:", data.to, "mapped to socket ID:", socketId);
+    console.log(
+      "Received cancelCall for peer ID:",
+      data.to,
+      "mapped to socket ID:",
+      socketId
+    );
     if (socketId) {
       io.to(socketId).emit("callCancelled");
       console.log("Emitted callCancelled to:", socketId);
@@ -127,7 +141,12 @@ io.on("connection", (socket) => {
 
   socket.on("endCall", (data) => {
     const socketId = peerToSocketMap.get(data.to);
-    console.log("Received endCall for peer ID:", data.to, "mapped to socket ID:", socketId);
+    console.log(
+      "Received endCall for peer ID:",
+      data.to,
+      "mapped to socket ID:",
+      socketId
+    );
     if (socketId) {
       io.to(socketId).emit("endCall");
       console.log("Emitted endCall to:", socketId);
