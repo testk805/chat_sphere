@@ -10,5 +10,6 @@ router.post("/sendMessage", chatController.sendMessage);
 router.post("/getUserChat", chatController.getUserChat);
 router.post("/savePeerid", chatController.savePeerid);
 router.post("/handledeleteMessage", chatController.handledeleteMessage);
+router.post("/seenallmessage", chatController.seenallmessage);
 
 module.exports = router;
