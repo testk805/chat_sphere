@@ -1,39 +1,35 @@
 const express = require("express");
- const cors = require("cors");
- const helmet = require("helmet");
- const bodyParser = require("body-parser");
- const path = require("path");
- const http = require("http");
- const { Server } = require("socket.io");
- 
- const app = express();
- const port = 3001;
- const server = http.createServer(app);
- app.use(cors());
- const io = new Server(server, {
-   cors: {
-     origin: "*", // Allow all domains (change this for production security)
-     methods: ["GET", "POST"],
-     allowedHeaders: ["Content-Type", "Authorization"],
-     credentials: true, // Allow cookies/auth headers
-   },
- });
- 
- // 🛠 CORS FIX
- app.use(
-   cors({
-     origin: "*",
-     methods: ["GET", "POST"],
-     allowedHeaders: ["Content-Type", "Authorization"],
-     exposedHeaders: ["Content-Length", "X-Content-Type-Options"],
-     credentials: true,
-   })
- );
- // 🛠 Serve Images Properly
- 
- app.use(helmet());
- app.use(bodyParser.json());
- 
+const cors = require("cors");
+const helmet = require("helmet");
+const bodyParser = require("body-parser");
+const path = require("path");
+const http = require("http");
+const { Server } = require("socket.io");
+
+const app = express();
+const port = 5000;
+const server = http.createServer(app);
+app.use(cors());
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  },
+});
+
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["Content-Length", "X-Content-Type-Options"],
+    credentials: true,
+  })
+);
+
+app.use(express.static(path.join(__dirname, "client", "build")));
 app.use(
   "/profile",
   express.static(path.join(__dirname, "profile"), {
@@ -46,17 +42,18 @@ app.use(
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "Uploads"), {
-    setHeaders: (res, filePath) => {
+    setHeaders: (res, path) => {
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
-      res.set("Access-Control-Allow-Origin", "*"); // Allows all origins
-      res.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE"); // Methods allowed
-      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization"); // Headers allowed
-      res.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for a year
-      res.set("Content-Security-Policy", "default-src 'self'"); // Security policy
-      res.set("X-Content-Type-Options", "nosniff"); // Security headers to prevent MIME type sniffing
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     },
   })
 );
+
+app.use(helmet());
+app.use(bodyParser.json());
+app.use("/profile", express.static(path.join(__dirname, "profile")));
 
 const onlineUsers = new Map();
 const peerToSocketMap = new Map();
@@ -175,18 +172,9 @@ io.on("connection", (socket) => {
   });
 });
 
- // Routes
- const loginRoutes = require("./routes/login");
- const chatRoutes = require("./routes/chat");
- app.use("/api", loginRoutes);
- app.use("/api", chatRoutes);
- 
- 
-app.get("/", (req, res) => {
-  res.send("🎉 ChatSphere backend is live!");
-});
+const loginRoutes = require("./routes/login");
+const chatRoutes = require("./routes/chat");
+app.use("/api", loginRoutes);
+app.use("/api", chatRoutes);
 
- // Start Server
- server.listen(port, () => {
-   console.log(`🚀 Server running at http://localhost:${port}`);
- });
+server.listen(port, () => console.log(`Server running on port ${port}`));

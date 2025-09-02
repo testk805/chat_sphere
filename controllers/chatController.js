@@ -132,6 +132,7 @@ exports.sendMessage = (req, res) => {
     }
 
     const { sender_id, reciver_id, message, status } = req.body;
+    console.log(sender_id, reciver_id, message, status);
     let file_url = req.file ? req.file.path.replace(/\\/g, "/") : null;
     let file_type = req.file ? req.file.mimetype : "text"; // Fix: Extract MIME type
 

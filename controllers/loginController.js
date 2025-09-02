@@ -125,7 +125,7 @@ For any assistance, feel free to contact our support team.
 
 Best regards,
 Chat Sphere Team
-📧 support@chatsphere.com | 🌐 https://chat-sphere-tkbs.onrender.com/`,
+📧 support@chatsphere.com | 🌐http://localhost:5000/`,
   };
 
   try {
@@ -241,7 +241,7 @@ Need help? Contact our support team.
 
 Best regards,
 Chat Sphere Team
-📧 support@chatsphere.com | 🌐 https://chat-sphere-tkbs.onrender.com/
+📧 support@chatsphere.com | 🌐http://localhost:5000/
 `,
   };
 
@@ -352,7 +352,7 @@ For any assistance, feel free to contact our support team.
 
 Best regards,  
 Chat Sphere Team  
-📧 support@chatsphere.com | 🌐 https://chat-sphere-tkbs.onrender.com/  
+📧 support@chatsphere.com | 🌐http://localhost:5000/  
 `,
   };
 
@@ -469,16 +469,207 @@ exports.realveriftotp = async (req, res) => {
 exports.Updatelastlogin = (req, res) => {
   const { userEmail } = req.body;
   try {
-    const UpdateQuery = "UPDATE `user` SET `last_login` = CURRENT_TIMESTAMP() WHERE `email` = ?";
+    const UpdateQuery =
+      "UPDATE `user` SET `last_login` = CURRENT_TIMESTAMP() WHERE `email` = ?";
     db.query(UpdateQuery, [userEmail], function (error, result) {
       if (error) {
         console.log(error);
         return res.status(500).json({ status: 0, error: error.message });
       }
-      res.status(200).json({ status: 1, message: "Last login updated successfully." });
+      res
+        .status(200)
+        .json({ status: 1, message: "Last login updated successfully." });
     });
   } catch (error) {
     console.log(error);
     res.status(500).json({ status: 0, error: error.message });
+  }
+};
+
+async function generateScript(
+  projectName,
+  problem_statement,
+  email,
+  systems = []
+) {
+  const logDir = path.join(
+    __dirname,
+    "..",
+    "ai2dev-folders",
+    "projects",
+    `${email}`,
+    `${projectName}`,
+    "logs"
+  );
+
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+
+  const logFileName = `${new Date()
+    .toISOString()
+    .replace(/:/g, "-")
+    .replace("T", "_")
+    .slice(0, -1)}-${email}-${projectName}.log`;
+
+  const logFilePath = path.join(logDir, logFileName);
+
+  const logMessage = async (message) => {
+    console.log(message);
+    await fs.promises.appendFile(logFilePath, message + "\n", "utf8");
+  };
+
+  let feedData =
+    problem_statement +
+    " Use the following data for each resource creation and sample JSON for input-output mapping. " +
+    " Any error should be logged and returned in a structured error format to the user. ";
+
+  // Multi-DB config logic
+  let configFeed = "";
+  let envFeed = "";
+  let dbTypes = []; 
+
+  if (Array.isArray(systems) && systems.length > 0) {
+    for (const sys of systems) {
+      const dbName = sys.connectName.trim().toUpperCase();
+      const dbType = sys.systemName.toLowerCase();
+      const backendsystems = `${dbType}`;
+      const systems = backendsystems
+        .split(",")
+        .map((s) => s.trim().replace(/\s+/g, "_").toLowerCase());
+    }
+
+    feedData += `\n======= MULTI-DB SUPPORT =======\n${configFeed}\nAdd to .env:\n${envFeed}\n==============================\n`;
+  }
+
+  const folderPath = path.join(
+    __dirname,
+    "../ai2dev-folders",
+    "projects",
+    email,
+    projectName,
+    "methods"
+  );
+
+  try {
+    await logMessage(
+      `🔹 Processing project: ${projectName} for user: ${email}`
+    );
+
+    const files = fs.readdirSync(folderPath);
+    let content = "";
+    let resources = "";
+
+    for (const resource of files) {
+      let folderPathConnection = path.join(folderPath, resource);
+
+      if (fs.statSync(folderPathConnection).isFile()) {
+        content = fs.readFileSync(folderPathConnection, "utf-8");
+
+        await logMessage(`📄 Read connection file: ${resource}`);
+        await logMessage(`📄 Content of ${resource}: \n${content}\n`);
+
+        feedData += `File: ${resource}, Content: '${content}' `;
+        content = "";
+      }
+
+      if (fs.statSync(folderPathConnection).isDirectory()) {
+        resources = fs.readdirSync(folderPathConnection);
+        feedData += ` For resource = /${resource}, use these data to create script: `;
+
+        for (const method of resources) {
+          let filePath = path.join(folderPathConnection, method);
+          if (fs.statSync(filePath).isFile()) {
+            content = fs.readFileSync(filePath, "utf-8");
+
+            await logMessage(`📂 Read method file: ${method}`);
+            await logMessage(`📂 Content of ${method}: \n${content}\n`);
+
+            feedData += ` Method: ${method}, Sample input/output: '${content}' `;
+          }
+        }
+      }
+    }
+
+    let routes = '"index.js": "", ';
+    let controllers = "";
+    let config = "";
+    let connections = "";
+    let connectionConfig = "";
+
+    systems.forEach((system) => {
+      routes += `"${system}": { "${system}Routes.js": "" }, `;
+      controllers += `"${system}": { "${system}Controller.js": "" }, `;
+      config += `"${system}": {}, `;
+      connections += `"${system}.js": "", `;
+      connectionConfig += `"${system}.js": "", `;
+    });
+
+    feedData +=
+      "\n\n" +
+      "Use the backend system names provided in the variable 'backendsystems' to name folders, files, and environment variable prefixes. " +
+      "Return the scripts in a Node.js backend project with the following structure: " +
+      "src/index.js, and other folders like src/routes, src/controllers, src/models, src/middleware, and src/config. " +
+      "Ensure src/routes has an index.js that imports and combines all individual route files. " +
+      "Ensure src/index.js uses require('./routes') which refers to routes/index.js. " +
+      "For each backend system, create separate folders under src/controllers, src/config, and src/routes named after the system. " +
+      "Each folder should contain system-specific files like Controller.js, Routes.js, and Config.js. " +
+      "All environment variables must be prefixed with the backend system name in uppercase, replacing spaces with underscores. " +
+      "All backend system configs should go inside connections/config/. Use one config file per system. " +
+      "Create separate connection files like connections/.js that import the respective config files. " +
+      "In each connection file, log whether the system is connected or failed. " +
+      "Include all connection files in your app startup file (index.js). " +
+      "Add all related variables in the .env file clearly grouped by backend system. " +
+      "The package.json must include express, dotenv, and cors as dependencies and set ./src/index.js as the main entry point. " +
+      "The final response must be a valid JSON object with this structure: { " +
+      `"src": { "index.js": "", "routes": { ${routes} }, "controllers": { ${controllers} }, "models": {}, "middleware": {}, "config": { ${config} } }, ` +
+      `"connections": { ${connections} "config": { ${connectionConfig} } }, ".env": "", "package.json": "" } ` +
+      'The entire response must be raw JSON only, with double-quoted keys and values. Escape all characters properly for JSON (e.g. \\n, \\", \\\\). Do not return markdown, comments, or explanations.' +
+      "Also setup CORS (all origins, all methods) in index.js.";
+
+    await logMessage("✅ Feed data prepared for AI processing");
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an API coding expert. Return ONLY a valid JSON object with no markdown formatting or extra text. The JSON should represent the entire Node.js project structure exactly as specified.",
+        },
+        { role: "user", content: feedData },
+      ],
+    });
+
+    let rawJson = response.choices[0].message.content.trim();
+    await logMessage(`🔍 AI Raw Response: \n${rawJson}`);
+
+    rawJson = rawJson
+      .replace(/^```json\s*/, "")
+      .replace(/\s*```$/, "")
+      .trim();
+
+    if (!rawJson.startsWith("{") || !rawJson.endsWith("}")) {
+      await logMessage(`⚠️ Invalid JSON format: ${rawJson}`);
+      throw new Error("Invalid JSON format from AI response.");
+    }
+
+    const jsonData = JSON.parse(rawJson);
+    await logMessage("✅ Successfully parsed JSON from AI response");
+
+    const folderPathProject = path.join(
+      __dirname,
+      `../ai2dev-folders/projects/${email}/${projectName}/generatedRepos`
+    );
+    fs.mkdirSync(folderPathProject, { recursive: true });
+
+    await logMessage(`📂 Created project directory: ${folderPathProject}`);
+    createProjectStructure(jsonData, folderPathProject);
+
+    await logMessage("🚀 Project structure created successfully!");
+    return "SUCCESS";
+  } catch (err) {
+    await logMessage(`❌ Error: ${err.message}`);
+    throw err;
   }
 }
