@@ -10,6 +10,13 @@ function handleDisconnect() {
     database: "bn4a7py0a8uurhaxofah",
   });
 
+  // db = mysql.createConnection({
+  //   host: "localhost",
+  //   user: "root",github
+  //   password: "",
+  //   database: "chat_sphere",
+  // });
+
   db.connect((err) => {
     if (err) {
       console.error("Error connecting to DB, retrying in 5s:", err);

@@ -125,7 +125,7 @@ For any assistance, feel free to contact our support team.
 
 Best regards,
 Chat Sphere Team
-📧 support@chatsphere.com | 🌐http://localhost:5000/`,
+📧 support@chatsphere.com | 🌐https://chat-sphere-tkbs.onrender.com/`,
   };
 
   try {
@@ -241,7 +241,7 @@ Need help? Contact our support team.
 
 Best regards,
 Chat Sphere Team
-📧 support@chatsphere.com | 🌐http://localhost:5000/
+📧 support@chatsphere.com | 🌐https://chat-sphere-tkbs.onrender.com/
 `,
   };
 
@@ -352,7 +352,7 @@ For any assistance, feel free to contact our support team.
 
 Best regards,  
 Chat Sphere Team  
-📧 support@chatsphere.com | 🌐http://localhost:5000/  
+📧 support@chatsphere.com | 🌐https://chat-sphere-tkbs.onrender.com/  
 `,
   };
 

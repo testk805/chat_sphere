@@ -44,19 +44,55 @@ exports.seenallmessage = async (req, res) => {
 
 exports.fetchFriendData = (req, res) => {
   const { userEmail, lat, long } = req.body;
-  const SelectQuery =
-    "SELECT `id`, `name`, `email`, `image`, `location`, `lat`, `long`, `last_login`, ST_Distance_Sphere( point(`long`, `lat`), point(76.3484463, 32.1930719)) / 1000 AS distance_km FROM `user` WHERE `email` != ? ORDER BY distance_km ASC;";
 
-  db.query(
-    SelectQuery,
-    [userEmail, lat, long, userEmail],
-    function (error, result) {
-      if (error) {
-        return console.log(error);
-      }
-      res.status(200).json({ status: 1, data: result });
+  if (!userEmail) {
+    return res.status(400).json({ status: 0, message: "userEmail required" });
+  }
+
+  // Step 1: Get userId from email
+  const getUserIdQuery = "SELECT id FROM user WHERE email = ? LIMIT 1";
+
+  db.query(getUserIdQuery, [userEmail], function (err, userResult) {
+    if (err) {
+      console.error("DB Error:", err);
+      return res.status(500).json({ status: 0, message: "DB error" });
     }
-  );
+
+    if (userResult.length === 0) {
+      return res.status(404).json({ status: 0, message: "User not found" });
+    }
+
+    const userId = userResult[0].id;
+
+    // Step 2: Friends + unread count
+    const SelectQuery = `
+      SELECT 
+        u.id, u.name, u.email, u.image, u.location, u.lat, u.long, u.last_login,
+        ST_Distance_Sphere(point(u.\`long\`, u.\`lat\`), point(?, ?)) / 1000 AS distance_km,
+        (
+          SELECT COUNT(*) 
+          FROM message m 
+          WHERE m.sender_id = u.id 
+            AND m.reciver_id = ? 
+            AND m.status = 'sent'
+        ) AS unread_count
+      FROM user u
+      WHERE u.email != ?
+      ORDER BY distance_km ASC;
+    `;
+
+    db.query(
+      SelectQuery,
+      [long, lat, userId, userEmail],
+      function (error, result) {
+        if (error) {
+          console.error("DB Error:", error);
+          return res.status(500).json({ status: 0, message: "DB error" });
+        }
+        res.status(200).json({ status: 1, data: result });
+      }
+    );
+  });
 };
 
 exports.updatelocation = (req, res) => {
@@ -168,12 +204,31 @@ exports.sendMessage = (req, res) => {
           return res.status(500).json({ status: 0, error: "Database error" });
         }
 
-        res.status(200).json({
-          status: 1,
-          message: "Message sent successfully",
-          sender_id,
-          reciver_id,
-          data: result.insertId,
+        const userSql = `
+          SELECT id, name 
+          FROM user 
+          WHERE id IN (?, ?)
+        `;
+        db.query(userSql, [sender_id, reciver_id], (err, users) => {
+          if (err) {
+            console.error("User fetch error:", err);
+            return res
+              .status(500)
+              .json({ status: 0, error: "User fetch error" });
+          }
+
+          const sender = users.find((u) => u.id == sender_id);
+          const receiver = users.find((u) => u.id == reciver_id);
+
+          res.status(200).json({
+            status: 1,
+            message: message,
+            sender_id,
+            reciver_id,
+            sender,
+            receiver,
+            data: result.insertId,
+          });
         });
       }
     );
